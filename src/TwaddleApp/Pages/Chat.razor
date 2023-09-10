@@ -1,0 +1,87 @@
+﻿@page "/chat/{encodedChatId}"
+@using System.Text
+@using System.Web
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.SignalR.Client
+
+<PageTitle>@ChatName - Twaddle @(!IsConnected ? "- DISCONNECTED" : string.Empty)</PageTitle>
+
+<h1>@ChatName - @(IsConnected ? "Connected" : "DISCONNECTED")</h1>
+
+<div class="form-group">
+    <label>
+        User:
+        <input @bind="_userId"/>
+    </label>
+</div>
+
+<p>Messages</p>
+<ul>
+    @foreach (var message in _messages)
+    {
+        <li>
+            <strong>@message.UserId</strong>: @message.Message
+        </li>
+    }
+</ul>
+
+<div>
+    <input @bind="_input"/>
+    <button @onclick="Send">Send</button>
+</div>
+
+@code {
+
+    private string _userId = Guid.NewGuid().ToString();
+    private readonly List<ChatMessage> _messages = new();
+    private string _input = string.Empty;
+    private HubConnection? _hub;
+    
+    [Parameter]
+    public string EncodedChatId { get; set; }
+
+    private string ChatName => HttpUtility.UrlDecode(EncodedChatId);
+
+    private bool IsConnected => _hub?.State == HubConnectionState.Connected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // TODO load existing messages for chat
+        
+        _hub = new HubConnectionBuilder()
+            .WithUrl("/chathub")
+            .Build();
+        
+        _hub.On<ChatMessage>("ReceivedMessage", message =>
+        {
+            _messages.Add(message);
+            InvokeAsync(StateHasChanged);
+        });
+        
+        await _hub.StartAsync();
+    }
+
+    private async Task Send()
+    {
+        if (_hub is null)
+        {
+            return;
+        }
+
+        var message = new ChatMessage
+        {
+            ChatId = ChatName, 
+            UserId = _userId, 
+            Message = _input
+        };
+        await _hub.SendAsync("SendMessage", message);
+        _input = string.Empty;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is null) return;
+
+        await _hub.DisposeAsync();
+    }
+}

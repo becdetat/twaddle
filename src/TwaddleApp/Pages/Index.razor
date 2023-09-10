@@ -1,0 +1,40 @@
+﻿@page "/"
+@using System.Text
+@using System.Web
+@inject NavigationManager Navigation
+
+<PageTitle>Twaddle</PageTitle>
+
+<p>Enter chat ID (<button @onclick="GenerateChatId">regenerate</button>)</p>
+<div>
+    <input @bind="_chatId"/>
+    <button @onclick="OpenChat">Open/start chat</button>
+</div>
+
+@if (!string.IsNullOrEmpty(_error))
+{
+    <p>Error: @_error</p>
+}
+
+@code {
+    private string _chatId = Guid.NewGuid().ToString();
+    private string _error = string.Empty;
+
+    private void GenerateChatId()
+    {
+        _chatId = Guid.NewGuid().ToString();
+    }
+
+    private void OpenChat()
+    {
+        if (string.IsNullOrEmpty(_chatId))
+        {
+            _error = "No chat ID provided. Just generate one and share it around!";
+            return;
+        }
+
+        var encodedChatId = HttpUtility.UrlEncode(_chatId);
+        Navigation.NavigateTo($"/chat/{encodedChatId}");
+    }
+}
+
